@@ -63,15 +63,28 @@ class ReportGenerator:
             # Initialize empty observation dictionary
             obs_data = None
 
-            # Generate RAG audit observation for flagged claims (Inconsistent, Unsupported, or High Risk)
-            if verdict in {"UNSUPPORTED", "INCONSISTENT", "HIGH_RISK", "PARTIALLY_CONSISTENT"}:
+            # 1. Check if observation already exists in the item
+            existing_obs = item.get("audit_observation")
+            if existing_obs:
+                if hasattr(existing_obs, "to_dict"):
+                    obs_data = existing_obs.to_dict()
+                elif isinstance(existing_obs, dict):
+                    obs_data = existing_obs
+                else:
+                    obs_data = {
+                        "structured_note": getattr(existing_obs, "structured_note", ""),
+                        "standards_cited": getattr(existing_obs, "standards_cited", []),
+                        "retrieval_confidence": getattr(existing_obs, "retrieval_confidence", 0.0),
+                    }
+            # 2. Generate RAG audit observation for flagged claims if not already present
+            elif verdict in {"UNSUPPORTED", "INCONSISTENT", "HIGH_RISK", "PARTIALLY_CONSISTENT"}:
                 if self.rag_chain:
                     try:
-                        # Context window from the Claim model contains the surrounding text
-                        context_window = getattr(claim, "context_window", claim.text)
+                        # surrounding context is in 'evidence' field
+                        context_window = getattr(claim, "evidence", claim.text)
                         obs = self.rag_chain.generate_audit_observation(
-                            claim_text=claim.text,
-                            context=context_window,
+                            claim=claim.text,
+                            shap_narrative=context_window or "No SHAP explanation available (generated in batch).",
                         )
                         obs_data = {
                             "structured_note": obs.structured_note,
@@ -90,6 +103,7 @@ class ReportGenerator:
                         "standards_cited": [],
                         "retrieval_confidence": "low",
                     }
+
 
             # Build serializable version of the result
             serialized_item = {

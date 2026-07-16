@@ -347,6 +347,17 @@ def _run_pipeline(doc, clf, vs, rc):
         # Run verification pipeline (L1 Internal, L2 Historical, L3 Standards Compliance)
         res = pipeline.verify_claim(claim, doc)
 
+        # Batch generate observation for flagged claims automatically using RAG
+        obs = None
+        if rc and res["agg_result"].verdict in {"UNSUPPORTED", "INCONSISTENT", "HIGH_RISK", "PARTIALLY_CONSISTENT"}:
+            try:
+                obs = rc.generate_audit_observation(
+                    claim=claim.text,
+                    shap_narrative="No SHAP explanation available (generated in batch)."
+                )
+            except Exception as e:
+                logger.error(f"Failed to generate batch observation for claim: {claim.text[:40]}...: {e}")
+
         processed_claims.append({
             "claim": claim,
             "classification": result,
@@ -355,7 +366,7 @@ def _run_pipeline(doc, clf, vs, rc):
             "l3_result": res["l3"],
             "agg_result": res["agg_result"],
             "shap_result": None,
-            "audit_observation": None,
+            "audit_observation": obs,
         })
 
     progress.empty()
@@ -363,12 +374,45 @@ def _run_pipeline(doc, clf, vs, rc):
     # Automatically save classified claims to a CSV file in data/classified_runs
     _save_claims_to_file(processed_claims, doc.company_name, doc.filing_year)
 
+    # ── Report Generation (Stage 6) ──
+    # Automatically write consolidated reports (JSON & Markdown) to data/processed/
+    try:
+        from src.reporting.report_generator import ReportGenerator
+        generator = ReportGenerator(rag_chain=rc)
+
+        # Build list matching format expected by ReportGenerator.generate
+        report_input = []
+        for item in processed_claims:
+            report_input.append({
+                "claim": item["claim"],
+                "l1": item["l1_result"],
+                "l2": item["l2_result"],
+                "l3": item["l3_result"],
+                "risk_score": item["agg_result"].risk_score,
+                "verdict": item["agg_result"].verdict,
+                "final_note": item["agg_result"].final_note,
+                "audit_observation": item["audit_observation"],
+            })
+
+        out_json = Path("data/processed/audit_report.json")
+        out_md = Path("data/processed/audit_report.md")
+
+        generator.generate(
+            verification_results=report_input,
+            output_json_path=out_json,
+            output_md_path=out_md,
+        )
+        logger.info("Successfully generated consolidated audit reports under data/processed/")
+    except Exception as e:
+        logger.error(f"Failed to compile consolidated audit report: {e}")
+
     st.session_state.claims = processed_claims
     st.session_state.company_name = doc.company_name
     st.session_state.filing_year = doc.filing_year
     st.session_state.processing_complete = True
     st.success(f"✅ {len(processed_claims)} claims classified")
     st.rerun()
+
 
 
 def _show_summary_metrics():

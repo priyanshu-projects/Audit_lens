@@ -110,3 +110,46 @@ class VerificationPipeline:
             res = self.verify_claim(claim, doc)
             results.append(res)
         return results
+
+    def run(self, claims: list[Claim], document: ExtractedDocument) -> list[PipelineVerificationResult]:
+        """
+        Verify all claims and return a list of PipelineVerificationResult objects
+        formatted to match the requirements of the app/api/verify.py endpoint.
+        """
+        results = self.verify_batch(claims, document)
+        flat_results = []
+        for i, item in enumerate(results):
+            claim = item["claim"]
+            l1 = item["l1"]
+            l2 = item["l2"]
+            l3 = item["l3"]
+            agg = item["agg_result"]
+
+            flat_results.append(PipelineVerificationResult({
+                "claim_id": i + 1,
+                "claim_text": claim.text,
+                "esg_label": claim.esg_label,
+                "risk_level": "HIGH" if agg.verdict in ["HIGH_RISK", "INCONSISTENT"] else ("MEDIUM" if agg.verdict == "PARTIALLY_CONSISTENT" else "LOW"),
+                "l1_status": l1.status,
+                "l1_note": l1.note,
+                "l2_status": l2.status,
+                "l2_note": l2.note,
+                "l3_status": l3.status,
+                "l3_note": l3.note,
+                "flags": [f"L1_{l1.status}", f"L2_{l2.status}", f"L3_{l3.status}"] if agg.verdict != "CONSISTENT" else [],
+                "aggregate_verdict": agg.verdict,
+                "confidence": float(claim.confidence),
+                "risk_score": float(agg.risk_score),
+                "final_note": agg.final_note,
+            }))
+        return flat_results
+
+
+class PipelineVerificationResult:
+    """Helper class wrapping a dictionary to provide to_dict() support for verify.py."""
+    def __init__(self, data: dict) -> None:
+        self.__dict__.update(data)
+
+    def to_dict(self) -> dict:
+        return self.__dict__
+
