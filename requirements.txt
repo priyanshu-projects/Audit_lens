@@ -1,0 +1,71 @@
+# ============================================================
+# AuditLens — requirements.txt
+# Unpinned versions — let pip resolve compatible set
+# Install: pip install -r requirements.txt
+# ============================================================
+
+# --- Web & API ---
+requests
+httpx
+
+# --- PDF Processing ---
+pdfplumber
+PyMuPDF
+
+# --- NLP & Claim Detection ---
+spacy
+# After install run: python -m spacy download en_core_web_sm
+
+# --- Transformers & ML ---
+transformers
+torch                            # CPU-only; conda installed separately
+datasets
+evaluate
+scikit-learn
+numpy
+pandas
+
+# --- Explainability ---
+shap
+
+# --- Embeddings (CPU-only) ---
+sentence-transformers
+# faiss-cpu installed via conda: conda install -c conda-forge faiss-cpu
+
+# --- RAG & LLM ---
+# pin these two together — they have a tight version coupling
+langchain==0.2.5
+langchain-google-genai==1.0.6
+langchain-community==0.2.5
+google-generativeai>=0.5.2,<0.6.0   # must stay <0.6.0 for langchain-google-genai==1.0.6
+
+# --- MLOps ---
+evidently
+mlflow
+dvc
+dvc-gs
+
+# --- Cloud & Storage ---
+google-cloud-storage
+google-cloud-run
+
+# --- Dashboard ---
+streamlit
+plotly
+reportlab
+
+# --- HuggingFace Hub ---
+huggingface-hub
+
+# --- Testing ---
+pytest
+pytest-cov
+pytest-mock
+
+# --- Config & Utilities ---
+pydantic>=2.0
+pydantic-settings
+python-dotenv
+PyYAML
+loguru
+tqdm

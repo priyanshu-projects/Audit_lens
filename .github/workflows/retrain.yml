@@ -1,0 +1,131 @@
+name: Monitored FinBERT Retraining
+
+# Triggered by retrain_trigger.py via GitHub API workflow dispatch
+# When Evidently AI detects distribution drift in incoming ESG filings
+
+on:
+  workflow_dispatch:
+    inputs:
+      drift_score:
+        description: "Evidently drift score that triggered this run"
+        required: true
+        type: string
+      drifted_features:
+        description: "Features with detected drift (JSON string)"
+        required: false
+        type: string
+      triggered_at:
+        description: "ISO timestamp of drift detection"
+        required: false
+        type: string
+
+jobs:
+  retrain:
+    name: Retrain FinBERT on Updated Data
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log trigger context
+        run: |
+          echo "🚨 Retrain triggered by drift detection"
+          echo "   Drift score:      ${{ inputs.drift_score }}"
+          echo "   Drifted features: ${{ inputs.drifted_features }}"
+          echo "   Triggered at:     ${{ inputs.triggered_at }}"
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install dvc[gs] google-cloud-storage mlflow evaluate transformers datasets scikit-learn -q
+
+      - name: Authenticate to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Pull latest training data from GCS (DVC)
+        run: |
+          dvc remote add -d gcs_remote gs://${{ secrets.GCP_BUCKET }}/dvc-cache
+          dvc pull data/training/ --force || echo "DVC pull failed — using cached data"
+
+      # ─────────────────────────────────────────────────────────────────────
+      # IMPORTANT: In a real Kaggle-based workflow, this step would instead
+      # dispatch a Kaggle notebook API call. For simplicity, we run training
+      # directly in the Actions runner (CPU, small dataset).
+      # For full GPU training: use Kaggle API to trigger the notebook.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Run retraining script
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+          MLFLOW_TRACKING_URI: "./mlruns"
+        run: |
+          python scripts/retrain.py \
+            --drift-score "${{ inputs.drift_score }}" \
+            --output-dir "./models/finbert_esg_retrained"
+
+      - name: Evaluate new model vs existing
+        id: evaluate
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+        run: |
+          python scripts/evaluate_models.py \
+            --new-model "./models/finbert_esg_retrained" \
+            --existing-model "$HF_USERNAME/finbert-esg" \
+            --output-file "./evaluation_result.json"
+
+          # Parse result
+          APPROVE=$(python -c "import json; d=json.load(open('evaluation_result.json')); print(str(d.get('approve', False)).lower())")
+          IMPROVEMENT=$(python -c "import json; d=json.load(open('evaluation_result.json')); print(d.get('f1_improvement', 0))")
+          echo "approve=$APPROVE" >> $GITHUB_OUTPUT
+          echo "f1_improvement=$IMPROVEMENT" >> $GITHUB_OUTPUT
+          echo "✅ Evaluation complete — approve=$APPROVE | improvement=$IMPROVEMENT"
+
+      - name: Upload new model to HuggingFace Hub (if approved)
+        if: steps.evaluate.outputs.approve == 'true'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_USERNAME: ${{ secrets.HF_USERNAME }}
+        run: |
+          python -c "
+          from huggingface_hub import login, upload_folder
+          import os
+          login(token=os.environ['HF_TOKEN'])
+          upload_folder(
+              repo_id=f\"{os.environ['HF_USERNAME']}/finbert-esg\",
+              folder_path='./models/finbert_esg_retrained',
+              commit_message='Retrain: drift-triggered update via GitHub Actions',
+          )
+          print('✅ New model uploaded to HuggingFace Hub')
+          "
+
+      - name: Trigger redeployment (if approved)
+        if: steps.evaluate.outputs.approve == 'true'
+        run: |
+          echo "✅ New model approved (F1 improvement: ${{ steps.evaluate.outputs.f1_improvement }})"
+          echo "Triggering deploy workflow..."
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yml/dispatches \
+            -d '{"ref":"main"}'
+
+      - name: Alert if model NOT approved
+        if: steps.evaluate.outputs.approve != 'true'
+        run: |
+          echo "⚠️  New model did NOT improve metrics."
+          echo "   F1 improvement: ${{ steps.evaluate.outputs.f1_improvement }}"
+          echo "   Keeping existing model — manual review required."
+          # In production: send alert to Slack/email via webhook

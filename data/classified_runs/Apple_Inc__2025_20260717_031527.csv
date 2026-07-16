@@ -1,0 +1,9 @@
+Claim ID,Claim Text,Source Section,ESG Label,L1 Check Status,L2 Check Status,L3 Check Status,Audit Risk Score,Verdict
+1,"The Company provides global employee benefits including health, wellness, and time away.",general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+2,"The Company provides general safety, security, and crisis management training to employees.",general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+3,The Company implements specific safety programs for employees in high-hazard environments.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+4,The Company maintains an equal opportunity employment policy.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+5,The Company maintains a policy to provide a workplace free of harassment or discrimination.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+6,Climate change increases the frequency and intensity of natural disasters and extreme weather events.,general,E,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+7,"The Company conducts employee sentiment surveys regarding career development, manager performance, and inclusion.",general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+8,"The Company maintains data security systems, including encryption, to protect sensitive customer and employee information.",general,G,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
