@@ -14,21 +14,61 @@
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Pipeline Architecture
 
+The AuditLens pipeline consists of six core stages:
+
+```text
+1. EDGAR Ingestion
+       ↓
+2. PDF/HTML Parsing (pages, sections, tables, metadata)
+       ↓
+3. Claim Extraction (Sentence Splitter, Optional keyword pre-filter, FinBERT ESG filter, Gemini atomic extraction, Quality filter)
+       ↓
+4. VerificationPipeline (L1 Internal, L2 Historical, L3 Standards)
+       ↓
+5. Aggregation
+       ↓
+6. ReportGenerator
 ```
-SEC EDGAR (daily) ──→ pdfplumber ──→ spaCy/regex ──→ FinBERT (fine-tuned)
-                                                           │
-                                                      SHAP explanation
-                                                           │
-                                             FAISS (GRI/TCFD/SASB/ISSB)
-                                                           │
-                                               LangChain RAG → Gemini 1.5 Flash
-                                                           │
-                                              Streamlit Dashboard (Auditors)
-                                                           │
-                              Docker → GCP Cloud Run ← GitHub Actions CI/CD
-```
+
+---
+
+## 🔍 Core Pipeline Chronology
+
+### 1. EDGAR Ingestion
+* **Trigger**: A stock ticker (e.g. `AAPL`) is mapped to its central Index Key (CIK).
+* **Filing Retrieval**: Resolves and downloads the latest available SEC 10-K XHTML/HTML document, saving it locally to `data/raw/<TICKER>/`.
+
+### 2. Document Parsing
+* **XHTML/HTML Processing**: Cleans and strips styling tags, formatting raw visible text.
+* **Structural Parsing**: Produces an `ExtractedDocument` object holding:
+  * **Pages**: Raw text segmented into standard page-like intervals.
+  * **Sections**: Document contents classified into key sectors (e.g. `environmental`, `social`, `governance`, `general`).
+  * **Tables**: Extracted tabular structures formatted as pipe-separated content for reference.
+  * **Metadata**: Company details and filing period metadata.
+
+### 3. Claim Extraction
+* **Sentence Splitting**: spaCy breaks section blocks into individual sentences.
+* **Optional Keyword Pre-filtering**: A lightweight, optional keyword filter prunes clearly irrelevant sentences to reduce downstream GPU/CPU inference costs.
+* **FinBERT ESG Classifier**: Sentences are routed through `yiyanghkust/finbert-esg` to classify ESG relevance.
+* **Gemini Atomic Extraction**: Relevant sentences are passed to Gemini, which splits compound statements into atomic assertions, categorizing by type (`quantitative`, `commitment`, `compliance`).
+* **Evidence Preservation**: Every atomic claim retains its original parent sentence, surrounding context, start/end character offsets, and normalized text.
+* **Post-Extraction Quality Filter**: A dedicated filter prunes duplicate, non-auditable, philosophical, generic marketing, or purely operational disclosures.
+
+### 4. Verification Pipeline
+* **L1 Internal Check**: Verifies if the numeric assertions in a claim match tables or disclosures elsewhere inside the *same* document.
+* **L2 Historical Check**: Compares claims to previous years' filings to identify baseline or metric contradictions.
+* **L3 Standards Check**: Queries the FAISS vector database containing disclosure framework indexes, evaluating the claim against retrieved standards to identify missing or incomplete required disclosures.
+
+### 5. Verdict Aggregation
+* **Risk Scoring**: Combines L1, L2, and L3 verification metrics into a consolidated Audit Risk Score.
+* **Verdict Assignment**: Maps scores to an actionable auditing category: `CONSISTENT`, `PARTIALLY_CONSISTENT`, `INCONSISTENT`, or `HIGH_RISK`.
+
+### 6. Audit Report Generation
+* **Report Compilation**: The `ReportGenerator` compiles verification verdicts.
+* **RAG Observations**: Generates structured audit notes, recommended actions, and specific framework citations using retrieved standards context for non-compliant claims.
+* **Persistence**: Outputs a consolidated audit report in JSON (`audit_report.json`) and Markdown formats.
 
 ---
 
