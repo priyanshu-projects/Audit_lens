@@ -479,12 +479,11 @@ class ClaimDetector:
 
         governance_cybersecurity_boilerplate = [
             r"\bcybersecurity risk\b",
-            r"\binformation security\b",
             r"\bcybersecurity incident\b",
-            r"\bsecurity committee\b",
-            r"\baudit committee regularly\b",
-            r"\boversight and monitoring\b",
+            # NOTE: "audit committee regularly", "oversight and monitoring", "information security"
+            # are genuine, auditable governance disclosures — do NOT block them.
         ]
+
 
         # Combine compiled regex patterns for speed
         all_generic_patterns = [

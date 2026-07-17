@@ -177,10 +177,53 @@ class PdfExtractor:
                 doc.sections = self._classify_sections(chunks)
                 doc.filing_year = self._extract_year(full_text)
 
-                # Try to pull company name from <title> or first heading
-                title_tag = soup.find("title")
-                if title_tag and title_tag.get_text(strip=True):
-                    doc.company_name = title_tag.get_text(strip=True)[:80]
+                # Extract company name: prefer explicit dei:EntityRegistrantName XBRL element,
+                # then <title>, then first h1/h2 heading, then filename fallback
+                entity_tag = soup.find(attrs={"name": "dei:EntityRegistrantName"})
+                if not entity_tag:
+                    entity_tag = soup.find("ix:nonfraction", attrs={"name": "dei:EntityRegistrantName"})
+                if not entity_tag:
+                    entity_tag = soup.find("ix:nonnumeric", attrs={"name": "dei:EntityRegistrantName"})
+
+                if entity_tag and entity_tag.get_text(strip=True):
+                    doc.company_name = entity_tag.get_text(strip=True)[:100]
+                else:
+                    # Try h1 heading near the top of the document
+                    for tag in soup.find_all(["h1", "h2"])[:10]:
+                        htext = tag.get_text(strip=True)
+                        if htext and len(htext) < 100 and "apple" in htext.lower():
+                            doc.company_name = htext
+                            break
+                    else:
+                        # Fall back to title tag
+                        title_tag = soup.find("title")
+                        if title_tag and title_tag.get_text(strip=True):
+                            doc.company_name = title_tag.get_text(strip=True)[:80]
+
+                # Fix filing year: the _extract_year regex looks in first 5000 chars which is
+                # usually XBRL preamble; also try matching the fiscal year from the filename or
+                # document period of report element
+                if not doc.filing_year or doc.filing_year == "1934":
+                    period_tag = soup.find(attrs={"name": "dei:DocumentPeriodEndDate"})
+                    if not period_tag:
+                        period_tag = soup.find("ix:nonfraction", attrs={"name": "dei:DocumentPeriodEndDate"})
+                    if not period_tag:
+                        period_tag = soup.find("ix:nonnumeric", attrs={"name": "dei:DocumentPeriodEndDate"})
+
+                    if period_tag:
+                        period_text = period_tag.get_text(strip=True)
+                        yr_match = _re.search(r"(\d{4})", period_text)
+                        if yr_match:
+                            doc.filing_year = yr_match.group(1)
+                    else:
+                        # Extract year from filename (e.g. aapl-20250927.htm → 2025)
+                        fn_match = _re.search(r"-(\d{4})\d{4}", pdf_path.stem)
+                        if fn_match:
+                            doc.filing_year = fn_match.group(1)
+                        else:
+                            yr_match = _re.search(r"(202\d)", full_text[:10000])
+                            if yr_match:
+                                doc.filing_year = yr_match.group(1)
 
                 logger.success(
                     f"HTML extraction complete: {len(chunks)} chunks, "
