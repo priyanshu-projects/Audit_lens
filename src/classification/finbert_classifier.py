@@ -7,7 +7,6 @@ Model: yiyanghkust/finbert-esg (FinBERT fine-tuned specifically for ESG classifi
 This model natively outputs Environmental / Social / Governance / None labels.
 It was trained on ESG-specific corporate text, so it correctly rejects generic
 corporate boilerplate and only fires on actual ESG claims.
-
 Fallback: ProsusAI/finbert (pretrained sentiment, used if ESG model unavailable)
 
 Output labels:
