@@ -25,15 +25,12 @@ from app.dependencies import get_claims_df, get_documents, get_finbert, get_rag_
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    On startup: eagerly load heavy singletons (FinBERT, claims, FAISS index)
-    so the first request is not slow.
-    """
+    """Eagerly load heavy singletons on startup so the first request is fast."""
     logger.info("AuditLens API starting up — loading models & data...")
-    get_finbert()         # load FinBERT into GPU/CPU memory
-    get_claims_df()       # load claims.parquet
-    get_documents()       # load documents.json
-    get_rag_chain()       # load FAISS index + Gemini chain
+    get_finbert()
+    get_claims_df()
+    get_documents()
+    get_rag_chain()
     logger.success("Startup complete. All singletons loaded.")
     yield
     logger.info("AuditLens API shutting down.")
@@ -51,16 +48,14 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # tighten for production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(health.router)
 app.include_router(query.router)
 app.include_router(claims.router)

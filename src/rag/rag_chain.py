@@ -146,31 +146,84 @@ class RagChain:
             api_key:      Google AI Studio API key
             model_name:   Gemini model ID (default: gemini-1.5-flash)
         """
-        models_to_try = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.5-flash", "gemini-flash-latest"]
+        models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash"]
         ordered_models = []
         for m in [model_name] + models_to_try:
             if m and m not in ordered_models:
                 ordered_models.append(m)
 
-        llm_instances = []
-        for model in ordered_models:
-            llm_instances.append(ChatGoogleGenerativeAI(
+        llm_instances = [
+            ChatGoogleGenerativeAI(
                 model=model,
                 google_api_key=api_key,
-                temperature=0.1,    # low temperature for consistent, factual audit notes
+                temperature=0.1,
                 max_output_tokens=8192,
-            ))
+            )
+            for model in ordered_models
+        ]
 
         primary_llm = llm_instances[0]
-        if len(llm_instances) > 1:
-            llm = primary_llm.with_fallbacks(llm_instances[1:])
-        else:
-            llm = primary_llm
+        llm = primary_llm.with_fallbacks(llm_instances[1:]) if len(llm_instances) > 1 else primary_llm
 
         logger.info(f"Gemini LLM configured with model: {ordered_models[0]} (fallbacks: {ordered_models[1:]})")
         return cls(vector_store=vector_store, llm=llm)
 
     # ── Public API ────────────────────────────────────────────────────────────
+
+    def query(
+        self,
+        question: str,
+        top_k: int = 5,
+    ) -> dict:
+        """
+        Answer a free-form question using the knowledge base.
+        Used by the FastAPI /query endpoint.
+
+        Returns:
+            dict with 'answer' (str) and 'source_documents' (list[dict])
+        """
+        results = self.vector_store.search(question, top_k=top_k)
+        if not results:
+            return {
+                "answer": "The knowledge base does not contain enough information to answer this question.",
+                "source_documents": [],
+            }
+
+        context = self._format_context(results)
+        prompt = ChatPromptTemplate.from_template(
+            """You are an expert in ESG regulatory standards (GRI, TCFD, SASB, ISSB, EU CSRD).
+
+Answer the following question using ONLY the provided standard excerpts.
+If the answer is not in the excerpts, say so explicitly.
+
+REGULATORY STANDARD EXCERPTS:
+{context}
+
+QUESTION: {question}
+
+Answer:"""
+        )
+        chain = prompt | self.llm | self._output_parser
+        try:
+            answer = chain.invoke({"context": context, "question": question})
+        except Exception as exc:
+            logger.error(f"Query failed: {exc}")
+            answer = f"Error generating answer: {exc}"
+
+        source_docs = [
+            {
+                "page_content": r.chunk.text,
+                "score": r.score,
+                "metadata": {
+                    "document": r.chunk.source_doc,
+                    "page": r.chunk.page_number,
+                    "standard": r.chunk.standard,
+                    "section": r.chunk.section,
+                },
+            }
+            for r in results
+        ]
+        return {"answer": answer, "source_documents": source_docs}
 
     def generate_audit_observation(
         self,

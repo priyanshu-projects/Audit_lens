@@ -4,7 +4,7 @@ src/rag/vector_store.py
 FAISS-based vector store for GRI/TCFD/SASB/ISSB standard document chunks.
 
 The knowledge base is built ONCE from PDFs in data/knowledge_base/
-and saved to disk. In production (Cloud Run), it's loaded from GCS.
+and saved to disk. In production (Docker/Azure), it is baked into the image.
 
 Chunking strategy:
   - Each standard PDF is split into ~300 token chunks with 50-token overlap
@@ -13,10 +13,10 @@ Chunking strategy:
 Usage:
     store = VectorStore()
     store.build_from_directory(Path("data/knowledge_base"))
-    store.save(Path("data/knowledge_base/faiss_index"))
+    store.save(Path("data/knowledge_base"))
 
     # Later / in production:
-    store = VectorStore.load(Path("data/knowledge_base/faiss_index"))
+    store = VectorStore.load(Path("data/knowledge_base"))
     results = store.search("Scope 1 GHG emission disclosure requirements", top_k=5)
 """
 

@@ -43,7 +43,7 @@ async def get_report(format: str = Query("json", pattern="^(json|markdown)$")) -
     if not data:
         raise HTTPException(
             status_code=404,
-            detail="No audit report found. Run 'dvc repro' or POST /report first.",
+            detail="No audit report found. Run POST /report first.",
         )
 
     observations = [
@@ -84,7 +84,11 @@ async def regenerate_report(request: ReportRequest) -> ReportResponse:
         with open(ver_path, encoding="utf-8") as f:
             ver_results = json.load(f)
 
-        report = generator.generate(verification_results=ver_results)
+        report = generator.generate(
+            verification_results=ver_results,
+            output_json_path=REPORT_JSON_PATH,
+            output_md_path=REPORT_MD_PATH,
+        )
 
         # Persist
         REPORT_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)

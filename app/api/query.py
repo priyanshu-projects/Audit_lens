@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException
 from loguru import logger
 
 from app.models import QueryRequest, QueryResponse
-from app.dependencies import get_rag_chain, get_claims_df
+from app.dependencies import get_rag_chain
 
 router = APIRouter(prefix="/query", tags=["Query"])
 
@@ -30,20 +30,18 @@ async def query(request: QueryRequest) -> QueryResponse:
     if rag_chain is None:
         raise HTTPException(
             status_code=503,
-            detail="RAG chain not available. Run 'dvc repro' first to build the index.",
+            detail="RAG chain not available. Build the FAISS index first.",
         )
 
     try:
         result = rag_chain.query(
             question=request.question,
             top_k=request.top_k,
-            filters=request.filters,
         )
     except Exception as exc:
         logger.error(f"RAG query failed: {exc}")
         raise HTTPException(status_code=500, detail=str(exc))
 
-    # Estimate confidence from retrieval scores
     scores = [c.get("score", 0.0) for c in result.get("source_documents", [])]
     avg_score = sum(scores) / len(scores) if scores else 0.0
     if avg_score >= 0.75:
@@ -58,6 +56,7 @@ async def query(request: QueryRequest) -> QueryResponse:
         for c in result.get("source_documents", [])
     ]
 
+    explainability = request.filters and request.filters.get("explainability") == "true"
     retrieved_chunks = [
         {
             "text": c.get("page_content", ""),
@@ -65,12 +64,12 @@ async def query(request: QueryRequest) -> QueryResponse:
             "metadata": c.get("metadata", {}),
         }
         for c in result.get("source_documents", [])
-    ] if request.filters and request.filters.get("explainability") == "true" else None
+    ] if explainability else None
 
     return QueryResponse(
         question=request.question,
         answer=result.get("answer", "The documents do not contain enough information."),
         confidence=confidence,
-        sources=list(dict.fromkeys(sources)),   # deduplicate preserving order
+        sources=list(dict.fromkeys(sources)),
         retrieved_chunks=retrieved_chunks,
     )

@@ -1,6 +1,5 @@
 """
 app/models.py
-  — Added ShapTokenOut + ShapExplanationOut for SHAP API responses
 ==============
 Pydantic request/response models for the AuditLens FastAPI.
 """
@@ -10,24 +9,20 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
-# ── SHAP ──────────────────────────────────────────────────────────────────────
-
 class ShapTokenOut(BaseModel):
     """SHAP attribution for a single token."""
     token: str
-    value: float   # positive = risk-raising, negative = risk-lowering
+    value: float
 
 
 class ShapExplanationOut(BaseModel):
-    """Full SHAP explanation for one claim — returned by GET /claims/{id}?explain=true."""
+    """Full SHAP explanation for one claim."""
     narrative: str
-    top_risk_tokens: List[ShapTokenOut]   # words that raised risk score
-    top_safe_tokens: List[ShapTokenOut]   # words that lowered risk score
+    top_risk_tokens: List[ShapTokenOut]
+    top_safe_tokens: List[ShapTokenOut]
     prediction_label: str
     base_value: float
 
-
-# ── Shared ────────────────────────────────────────────────────────────────────
 
 class ClaimOut(BaseModel):
     """A single extracted ESG claim returned from the API."""
@@ -50,7 +45,7 @@ class VerificationResultOut(BaseModel):
     claim_id: int
     claim_text: str
     esg_label: str
-    risk_level: str                  # HIGH / MEDIUM / LOW
+    risk_level: str
     l1_status: str
     l2_status: str
     l3_status: str
@@ -69,8 +64,6 @@ class AuditObservation(BaseModel):
     sources: List[str] = Field(default_factory=list)
 
 
-# ── /query ─────────────────────────────────────────────────────────────────────
-
 class QueryRequest(BaseModel):
     question: str = Field(..., example="What emission reduction targets has Apple committed to?")
     top_k: int = Field(5, ge=1, le=20)
@@ -83,19 +76,15 @@ class QueryRequest(BaseModel):
 class QueryResponse(BaseModel):
     question: str
     answer: str
-    confidence: str          # High / Medium / Low
+    confidence: str
     sources: List[str]
-    retrieved_chunks: Optional[List[Dict[str, Any]]] = None   # explainability mode
+    retrieved_chunks: Optional[List[Dict[str, Any]]] = None
 
-
-# ── /claims ────────────────────────────────────────────────────────────────────
 
 class ClaimsListResponse(BaseModel):
     total: int
     claims: List[ClaimOut]
 
-
-# ── /verify ────────────────────────────────────────────────────────────────────
 
 class VerifyRequest(BaseModel):
     """Trigger on-demand verification for specific claim IDs (or all)."""
@@ -113,8 +102,6 @@ class VerifyResponse(BaseModel):
     results: List[VerificationResultOut]
 
 
-# ── /report ────────────────────────────────────────────────────────────────────
-
 class ReportRequest(BaseModel):
     format: str = Field("json", pattern="^(json|markdown)$")
 
@@ -126,8 +113,6 @@ class ReportResponse(BaseModel):
     observations: List[AuditObservation]
     markdown_summary: Optional[str] = None
 
-
-# ── /documents ─────────────────────────────────────────────────────────────────
 
 class DocumentOut(BaseModel):
     doc_id: str
@@ -144,16 +129,12 @@ class DocumentsListResponse(BaseModel):
     documents: List[DocumentOut]
 
 
-# ── /upload ────────────────────────────────────────────────────────────────────
-
 class UploadResponse(BaseModel):
     filename: str
     size_bytes: int
-    status: str          # "queued" | "processing" | "done" | "error"
+    status: str
     message: str
 
-
-# ── /health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):
     status: str

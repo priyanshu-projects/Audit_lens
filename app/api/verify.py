@@ -51,7 +51,7 @@ async def get_verification_results() -> VerifyResponse:
     if not raw:
         raise HTTPException(
             status_code=404,
-            detail="No verification results found. Run 'dvc repro' or POST /verify first.",
+            detail="No verification results found. POST /verify first.",
         )
     results = [_map_result(i, r) for i, r in enumerate(raw)]
     high = sum(1 for r in results if r.risk_level.upper() == "HIGH")
@@ -109,7 +109,7 @@ async def run_verification(request: VerifyRequest) -> VerifyResponse:
             for _, row in df.iterrows()
         ]
 
-        # Use first document for context (multi-doc support can be added later)
+        # Use first document for context
         doc = ExtractedDocument(**docs[0]) if docs else None
         agg_results = pipeline.run(claims=claims, document=doc)
 

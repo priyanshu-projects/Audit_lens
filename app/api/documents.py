@@ -75,11 +75,11 @@ async def get_document(doc_id: str) -> DocumentOut:
 
 
 def _run_pipeline_for_file(filename: str) -> None:
-    """Background task: run the DVC extract stage for a newly uploaded file."""
+    """Background task: run extraction pipeline for a newly uploaded file."""
     import subprocess
     logger.info(f"Starting extraction pipeline for {filename}")
     result = subprocess.run(
-        ["conda", "run", "-n", "auditlens", "python", "scripts/extract_claims.py",
+        ["python", "scripts/run_pipeline_cli.py",
          "--input", "data/raw", "--output", "data/processed"],
         capture_output=True, text=True, cwd=str(Path.cwd()),
     )
@@ -133,7 +133,7 @@ async def upload_document(
 async def delete_document(doc_id: str) -> None:
     """
     Remove a document from data/raw/ and invalidate the data cache.
-    Note: re-run 'dvc repro' or POST /verify to refresh results.
+    Note: re-run POST /verify to refresh results.
     """
     raw_files = list(RAW_DIR.glob(f"*{doc_id}*"))
     if not raw_files:
