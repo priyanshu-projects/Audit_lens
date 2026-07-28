@@ -1,0 +1,51 @@
+# ── Secrets — never in Docker ─────────────────────────────────────────────────
+.env
+.env.*
+
+# ── Git & CI ──────────────────────────────────────────────────────────────────
+.git/
+.github/
+.gitignore
+
+# ── Local Python environments ─────────────────────────────────────────────────
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# ── Runtime data — generated at runtime, not baked into image ─────────────────
+data/raw/
+data/classified_runs/
+data/processed/
+data/training/
+data/task_assistant.db
+data/task_assistant_faiss
+
+# ── knowledge_base IS included (FAISS index + standards PDFs) ─────────────────
+# data/knowledge_base/ ← intentionally NOT ignored
+
+# ── Dev/debug scripts ─────────────────────────────────────────────────────────
+audit_*.py
+governance_debug.py
+check_env.py
+test_pipeline.py
+*.log
+*.txt
+!requirements.txt
+
+# ── Tests — not needed in production container ────────────────────────────────
+tests/
+
+# ── Docker compose (only for local dev) ──────────────────────────────────────
+docker-compose.yml
+
+# ── IDE & OS noise ────────────────────────────────────────────────────────────
+.agents/
+.vscode/
+.idea/
+*.DS_Store
+Thumbs.db
