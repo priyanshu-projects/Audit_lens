@@ -17,7 +17,7 @@ spacy
 # After install run: python -m spacy download en_core_web_sm
 
 # --- Transformers & ML ---
-transformers
+transformers>=4.35.0,<4.40.0     # pin below 4.40 — later versions eagerly import torchvision
 torch                            # CPU-only; conda installed separately
 datasets
 evaluate
@@ -30,7 +30,7 @@ shap
 
 # --- Embeddings (CPU-only) ---
 sentence-transformers
-# faiss-cpu installed via conda: conda install -c conda-forge faiss-cpu
+faiss-cpu
 
 # --- RAG & LLM ---
 # pin these two together — they have a tight version coupling

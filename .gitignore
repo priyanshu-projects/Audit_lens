@@ -43,6 +43,10 @@ data/knowledge_base/*.pdf
 !data/processed/.gitkeep
 !data/training/.gitkeep
 !data/knowledge_base/.gitkeep
+# Allow FAISS index files to be committed (needed for Docker build in CI/CD)
+!data/knowledge_base/*.faiss
+!data/knowledge_base/*.index
+!data/knowledge_base/chunks.json
 
 # --- Models (stored in HuggingFace Hub / GCS) ---
 models/
@@ -52,8 +56,12 @@ models/
 *.pth
 
 # --- FAISS Index (rebuilt from GCS) ---
+# *.faiss and *.index are allowed in data/knowledge_base (see above)
+# but excluded everywhere else (e.g. local test indexes)
 *.faiss
 *.index
+!data/knowledge_base/*.faiss
+!data/knowledge_base/*.index
 
 # --- MLflow ---
 mlruns/

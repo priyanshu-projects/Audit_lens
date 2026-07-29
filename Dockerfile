@@ -1,5 +1,5 @@
 # ── Stage 1: Builder ─────────────────────────────────────────────────────────
-# Installs all Python packages. Kept separate to keep final image lean.
+# Installs all Python packages. Re-runs only when requirements.txt changes.
 FROM python:3.11-slim AS builder
 
 WORKDIR /app
@@ -24,7 +24,39 @@ RUN pip install --prefix=/install spacy && \
     python -m spacy download en_core_web_sm --prefix /install || true
 
 
-# ── Stage 2: Production image ─────────────────────────────────────────────────
+# ── Stage 2: Model Cache ──────────────────────────────────────────────────────
+# Downloads heavy ML models INDEPENDENTLY of requirements.txt.
+# This layer is cached even when requirements.txt changes — saves ~530 MB re-download.
+FROM python:3.11-slim AS model-cache
+
+# Install only what's needed to download the models
+RUN pip install --no-cache-dir \
+    "transformers>=4.35.0,<4.40.0" \
+    torch \
+    sentence-transformers
+
+# Cache directory baked into the image
+ENV HF_HOME=/app/models
+ENV TRANSFORMERS_CACHE=/app/models
+ENV SENTENCE_TRANSFORMERS_HOME=/app/models
+
+WORKDIR /app
+
+# Download FinBERT ESG classifier (~440 MB)
+RUN python -c "\
+from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
+AutoTokenizer.from_pretrained('yiyanghkust/finbert-esg'); \
+AutoModelForSequenceClassification.from_pretrained('yiyanghkust/finbert-esg'); \
+print('FinBERT downloaded OK')"
+
+# Download sentence-transformers embedding model (~90 MB)
+RUN python -c "\
+from sentence_transformers import SentenceTransformer; \
+SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); \
+print('Embedding model downloaded OK')"
+
+
+# ── Stage 3: Production image ─────────────────────────────────────────────────
 # Lean runtime image — no compilers, no build tools.
 FROM python:3.11-slim AS production
 
@@ -39,47 +71,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy all installed Python packages from builder stage
 COPY --from=builder /install /usr/local
 
-# ── Bake ML models into the image ────────────────────────────────────────────
-# Models download HERE during docker build, not at container startup.
-# This makes cold starts fast — no 5-minute model download on first request.
+# Copy pre-baked ML models from the independent model-cache stage
+COPY --from=model-cache /app/models /app/models
 
-# Point all HuggingFace/sentence-transformers caches to /app/models
+# ── Environment variables ─────────────────────────────────────────────────────
 ENV HF_HOME=/app/models
 ENV TRANSFORMERS_CACHE=/app/models
 ENV SENTENCE_TRANSFORMERS_HOME=/app/models
-
-# Download FinBERT ESG classifier (yiyanghkust/finbert-esg — ~440 MB)
-RUN python -c "\
-from transformers import AutoTokenizer, AutoModelForSequenceClassification; \
-AutoTokenizer.from_pretrained('yiyanghkust/finbert-esg'); \
-AutoModelForSequenceClassification.from_pretrained('yiyanghkust/finbert-esg'); \
-print('FinBERT downloaded OK')"
-
-# Download sentence-transformers embedding model (~90 MB)
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2'); \
-print('Embedding model downloaded OK')"
-
-# ── Copy application code ─────────────────────────────────────────────────────
-COPY src/       ./src/
-COPY config/    ./config/
-COPY app/       ./app/
-COPY scripts/   ./scripts/
-
-# Copy pre-built FAISS knowledge base (GRI + SASB + TCFD standards)
-# faiss.index + chunks.json + PDFs are already built locally — no rebuild needed
-COPY data/knowledge_base/ ./data/knowledge_base/
-
-# Create writable dirs for runtime temp files (uploaded PDFs, reports)
-RUN mkdir -p /tmp/auditlens_uploads /tmp/auditlens_reports
-
-# ── Security: run as non-root user ───────────────────────────────────────────
-RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
-USER appuser
-
-# ── Environment variables ─────────────────────────────────────────────────────
 ENV STREAMLIT_SERVER_PORT=8501
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV STREAMLIT_SERVER_HEADLESS=true
@@ -91,19 +89,31 @@ ENV LOG_LEVEL=INFO
 ENV FINBERT_MODEL_ID=yiyanghkust/finbert-esg
 ENV EMBEDDING_MODEL_ID=sentence-transformers/all-MiniLM-L6-v2
 
+# ── Copy application code ─────────────────────────────────────────────────────
+COPY src/       ./src/
+COPY config/    ./config/
+COPY app/       ./app/
+COPY scripts/   ./scripts/
+
+# Copy pre-built FAISS knowledge base (GRI + SASB + TCFD standards)
+COPY data/knowledge_base/ ./data/knowledge_base/
+
+# Create writable dirs for runtime temp files (uploaded PDFs, reports)
+RUN mkdir -p /tmp/auditlens_uploads /tmp/auditlens_reports
+
+# ── Security: run as non-root user ───────────────────────────────────────────
+RUN useradd --create-home --shell /bin/bash appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
 # ── Ports ─────────────────────────────────────────────────────────────────────
-# 8501 = Streamlit (auditlens-ui service)
-# 8080 = FastAPI  (auditlens-api service) — override CMD when deploying API
 EXPOSE 8501
 
 # ── Health check ──────────────────────────────────────────────────────────────
-# Give 120s start-period because models need to load into memory on first start
 HEALTHCHECK --interval=30s --timeout=15s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:8501/_stcore/health || exit 1
 
 # ── Default command: Streamlit dashboard ──────────────────────────────────────
-# When deploying the FastAPI service, override with:
-#   CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 CMD ["streamlit", "run", "src/dashboard/app.py", \
      "--server.port=8501", \
      "--server.address=0.0.0.0", \

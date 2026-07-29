@@ -1,0 +1,64 @@
+name: 🚀 Build & Deploy to Azure
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:   # allows manual trigger from GitHub UI
+
+env:
+  REGISTRY: auditlensregistry.azurecr.io
+  IMAGE_NAME: auditlens
+  CONTAINER_APP: auditlens-api
+  RESOURCE_GROUP: auditlens-rg
+
+jobs:
+  build-and-deploy:
+    name: Build Docker image & deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Get the code ───────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Log in to Azure using the service principal ────────────────────
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # ── 3. Log in to Azure Container Registry ────────────────────────────
+      - name: Login to ACR
+        run: az acr login --name auditlensregistry
+
+      # ── 4. Set up Docker Buildx (enables layer caching) ──────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ── 5. Build & push image (with layer caching for speed) ─────────────
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # Cache layers in ACR to speed up future builds
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+      # ── 6. Deploy new image to Azure Container Apps ───────────────────────
+      - name: Deploy to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      # ── 7. Print the live URL ─────────────────────────────────────────────
+      - name: Print live URL
+        run: |
+          URL=$(az containerapp show \
+            --name ${{ env.CONTAINER_APP }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "properties.configuration.ingress.fqdn" -o tsv)
+          echo "✅ Deployed! Live at: https://$URL"
