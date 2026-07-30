@@ -8,9 +8,11 @@
 requests
 httpx
 
-# --- PDF Processing ---
+# --- PDF & Document Processing ---
 pdfplumber
 PyMuPDF
+beautifulsoup4
+lxml
 
 # --- NLP & Claim Detection ---
 spacy
