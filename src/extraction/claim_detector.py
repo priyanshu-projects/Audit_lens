@@ -91,9 +91,11 @@ class ClaimDetector:
             sections_list = [source_section] * len(texts_to_classify)
             classifications = self.classifier.classify_batch(texts_to_classify, source_sections=sections_list)
             for s, res in zip(cleaned_sentences, classifications):
-                if res.esg_label in {'E', 'S', 'G'} and res.confidence >= self.confidence_threshold:
+                is_high_conf_esg = res.esg_label in {'E', 'S', 'G'} and res.confidence >= self.confidence_threshold
+                has_esg_anchor = _ESG_ANCHOR_PATTERN.search(s['text']) is not None
+                if is_high_conf_esg or has_esg_anchor:
                     s['finbert_confidence'] = res.confidence
-                    s['finbert_esg_label'] = res.esg_label
+                    s['finbert_esg_label'] = res.esg_label if is_high_conf_esg else (res.esg_label if res.esg_label in {'E', 'S', 'G'} else 'MIXED')
                     candidate_sentences.append(s)
         else:
             for s in cleaned_sentences:

@@ -33,8 +33,9 @@ sentence-transformers
 faiss-cpu
 
 # --- RAG & LLM ---
-# pin these two together — they have a tight version coupling
+# pin these together — they have a tight version coupling
 langchain==0.2.5
+langchain-core==0.2.7
 langchain-google-genai==1.0.6
 langchain-community==0.2.5
 google-generativeai>=0.5.2,<0.6.0   # must stay <0.6.0 for langchain-google-genai==1.0.6
