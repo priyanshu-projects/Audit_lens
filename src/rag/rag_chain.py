@@ -27,7 +27,7 @@ AUDITOR_QUESTION_PREFIX = 'AUDITOR QUESTION: '
 class RagChain:
     LOW_CONFIDENCE_THRESHOLD = 0.4
 
-    def __init__(self, vector_store: VectorStore, llm: ChatGoogleGenerativeAI) -> None:
+    def __init__(self, vector_store: Optional[VectorStore], llm: ChatGoogleGenerativeAI) -> None:
         self.vector_store = vector_store
         self.llm = llm
         self._prompt = ChatPromptTemplate.from_template(AUDIT_OBSERVATION_TEMPLATE)
@@ -35,7 +35,7 @@ class RagChain:
         logger.info('RagChain initialised')
 
     @classmethod
-    def build(cls, vector_store: VectorStore, api_key: str=gemini_cfg.api_key, model_name: str=gemini_cfg.model_name) -> 'RagChain':
+    def build(cls, vector_store: Optional[VectorStore]=None, api_key: str=gemini_cfg.api_key, model_name: str=gemini_cfg.model_name) -> 'RagChain':
         models_to_try = ['gemini-2.0-flash', 'gemini-2.5-flash']
         ordered_models = []
         for m in [model_name] + models_to_try:

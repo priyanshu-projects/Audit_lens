@@ -39,8 +39,6 @@ def load_vector_store():
 
 @st.cache_resource(show_spinner='Connecting to Gemini API...')
 def load_rag_chain(_vector_store):
-    if _vector_store is None:
-        return None
     try:
         from src.rag.rag_chain import RagChain
         from config.settings import gemini_cfg
@@ -138,7 +136,7 @@ def _run_pipeline(doc, clf, vs, rc):
         if rc is None or rc.llm is None:
             st.error('❌ Gemini LLM is not configured (check your GEMINI_API_KEY in .env). Claim detection cannot proceed.')
             st.stop()
-        detector = ClaimDetector(classifier=clf, llm=rc.llm, use_keyword_filter=True, max_candidates=150)
+        detector = ClaimDetector(classifier=clf, llm=rc.llm, confidence_threshold=0.8, use_keyword_filter=True, max_candidates=150)
         sections = _trim_sections(doc.sections)
         claims = detector.detect_from_document(sections)
         if not claims:
