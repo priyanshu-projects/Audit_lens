@@ -122,7 +122,7 @@ def _save_claims_to_file(processed_claims, company_name, filing_year):
         logger.error(f'Failed to save claims to CSV: {e}')
 
 def _trim_sections(sections: dict) -> dict:
-    MAX_GENERAL_CHARS = 60000
+    MAX_GENERAL_CHARS = 500000  # Allow full EDGAR 10-K documents (ESG disclosures start after ~60k chars of legal cover pages)
     trimmed = {}
     for name, text in sections.items():
         if name == 'general' and len(text) > MAX_GENERAL_CHARS:
