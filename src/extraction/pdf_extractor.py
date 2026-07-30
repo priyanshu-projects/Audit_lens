@@ -53,7 +53,10 @@ class PdfExtractor:
                 import re as _re
                 logger.info(f'Extracting HTML/iXBRL filing: {pdf_path.name}')
                 raw_html = pdf_path.read_text(encoding='utf-8', errors='replace')
-                soup = BeautifulSoup(raw_html, 'lxml')
+                try:
+                    soup = BeautifulSoup(raw_html, 'lxml')
+                except Exception:
+                    soup = BeautifulSoup(raw_html, 'html.parser')
                 for tag in soup(['script', 'style', 'ix:hidden', 'ix:header', 'link', 'meta']):
                     tag.decompose()
                 full_text = soup.get_text(separator='\n', strip=True)
