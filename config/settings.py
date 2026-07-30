@@ -21,6 +21,7 @@ class EdgarConfig(BaseSettings):
     base_url: str = 'https://data.sec.gov'
     submissions_url: str = 'https://data.sec.gov/submissions'
     search_url: str = 'https://efts.sec.gov/LATEST/search-index'
+    lookback_days: int = Field(365, alias='EDGAR_LOOKBACK_DAYS')
 
 class AppConfig(BaseSettings):
     model_config = SettingsConfigDict(env_file=PROJECT_ROOT / '.env', extra='ignore')
