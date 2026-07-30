@@ -150,27 +150,9 @@ def _run_pipeline(doc, clf, vs, rc):
     for i, (claim, result) in enumerate(zip(claims, results)):
         progress.progress((i + 1) / len(claims), text=f'Verifying claim {i + 1}/{len(claims)}...')
         res = pipeline.verify_claim(claim, doc)
-        obs = None
-        if rc and res['agg_result'].verdict in {'UNSUPPORTED', 'INCONSISTENT', 'HIGH_RISK', 'PARTIALLY_CONSISTENT'}:
-            try:
-                obs = rc.generate_audit_observation(claim=claim.text, shap_narrative='No SHAP explanation available (generated in batch).')
-            except Exception as e:
-                logger.error(f'Failed to generate batch observation for claim: {claim.text[:40]}...: {e}')
-        processed_claims.append({'claim': claim, 'classification': result, 'l1_result': res['l1'], 'l2_result': res['l2'], 'l3_result': res['l3'], 'agg_result': res['agg_result'], 'shap_result': None, 'audit_observation': obs})
+        processed_claims.append({'claim': claim, 'classification': result, 'l1_result': res['l1'], 'l2_result': res['l2'], 'l3_result': res['l3'], 'agg_result': res['agg_result'], 'shap_result': None, 'audit_observation': None})
     progress.empty()
     _save_claims_to_file(processed_claims, doc.company_name, doc.filing_year)
-    try:
-        from src.reporting.report_generator import ReportGenerator
-        generator = ReportGenerator(rag_chain=rc)
-        report_input = []
-        for item in processed_claims:
-            report_input.append({'claim': item['claim'], 'l1': item['l1_result'], 'l2': item['l2_result'], 'l3': item['l3_result'], 'risk_score': item['agg_result'].risk_score, 'verdict': item['agg_result'].verdict, 'final_note': item['agg_result'].final_note, 'audit_observation': item['audit_observation']})
-        out_json = Path('data/processed/audit_report.json')
-        out_md = Path('data/processed/audit_report.md')
-        generator.generate(verification_results=report_input, output_json_path=out_json, output_md_path=out_md)
-        logger.info('Successfully generated consolidated audit reports under data/processed/')
-    except Exception as e:
-        logger.error(f'Failed to compile consolidated audit report: {e}')
     st.session_state.claims = processed_claims
     st.session_state.company_name = doc.company_name
     st.session_state.filing_year = doc.filing_year
