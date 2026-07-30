@@ -1,0 +1,31 @@
+Claim ID,Claim Text,Source Section,ESG Label,L1 Check Status,L2 Check Status,L3 Check Status,Audit Risk Score,Verdict
+1,"The Company provides employee benefits including health, wellness, and time away programs.",general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+2,The Company is involved in ongoing legal proceedings regarding a 2021 injunction and potential criminal contempt.,general,G,UNSUPPORTED,UNSUPPORTED,PARTIALLY_SUPPORTED,0.640,INCONSISTENT
+3,"The Company faces operational risks from geopolitical tensions, conflict, terrorism, natural disasters, and public health issues.",general,MIXED,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.050,NOT_ESG_CLAIM
+4,"The Company provides general safety, security, and crisis management training to employees.",general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+5,The Company implements specific safety programs for employees in high-hazard environments.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+6,The Company faces risks related to managing workforce dynamics and regulatory requirements.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+7,The Company maintains an equal opportunity employment policy and is committed to an inclusive workplace free of harassment or discrimination.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+8,The Company faces risks from differing stakeholder expectations regarding social and other ESG issues.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+9,"The Company is subject to evolving regulations regarding online safety, including protections for minors and age verification.",general,G,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+10,The Company identifies climate change as a driver of increased frequency and intensity of natural disasters.,general,E,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+11,The Audit Committee is responsible for the oversight and monitoring of cybersecurity risks.,general,G,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+12,The company identifies the inability to nurture its corporate culture as a risk to recruiting and retaining highly skilled employees.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+13,The company paid $6.1 billion in 2025 and $5.6 billion in 2024 and 2023 to taxing authorities for employees' tax obligations.,general,S,PARTIALLY_SUPPORTED,UNSUPPORTED,UNSUPPORTED,0.700,INCONSISTENT
+14,"The company conducts employee sentiment surveys covering career development, manager performance, and inclusion.",general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+15,"The company's operations and supply chain are subject to risks of interruption from environmental events, industrial accidents, and cybersecurity attacks.",general,MIXED,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.050,NOT_ESG_CLAIM
+16,The company identifies intense competition for talent as a risk leading to increased compensation costs.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+17,"The company reports approximately 166,000 full-time equivalent employees as of September 27, 2025.",general,S,PARTIALLY_SUPPORTED,UNSUPPORTED,UNSUPPORTED,0.700,INCONSISTENT
+18,The company identifies the retention of key personnel and highly skilled employees as a critical factor for future success.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+19,The Audit Committee regularly reviews and discusses cybersecurity risks with management.,general,G,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+20,The company maintains a policy of providing competitive and equitable compensation.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+21,"Management concluded that internal control over financial reporting was effective as of September 27, 2025, based on the COSO 2013 framework.",general,G,PARTIALLY_SUPPORTED,UNSUPPORTED,PARTIALLY_SUPPORTED,0.540,INCONSISTENT
+22,The company maintains policies and systems to protect sensitive customer and employee data.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+23,"The company has established processes to log, track, and escalate cybersecurity incidents to senior management and the Audit Committee.",general,G,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+24,The company deploys multifactor authentication and monitors systems for unusual activity to protect data security.,general,G,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+25,Product defects pose a risk of environmental damage and personal injury.,general,MIXED,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+26,The Audit Committee reviews cybersecurity risks and reports findings to the Board.,general,G,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+27,The company publicly discloses its values regarding environmental and societal impact.,general,MIXED,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+28,"The company pursues environmental and social goals that are subject to risks, uncertainties, and third-party dependencies.",general,MIXED,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT
+29,Regulatory requirements regarding labor and employment laws pose a risk to the company's ability to recruit and retain a global workforce.,general,S,SKIPPED,SKIPPED,UNSUPPORTED,0.800,HIGH_RISK
+30,The company maintains a commitment to nurturing an inclusive culture.,general,S,SKIPPED,SKIPPED,PARTIALLY_SUPPORTED,0.400,PARTIALLY_CONSISTENT

@@ -51,6 +51,9 @@ class PdfExtractor:
             try:
                 from bs4 import BeautifulSoup
                 import re as _re
+                from bs4 import XMLParsedAsHTMLWarning
+                import warnings
+                warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
                 logger.info(f'Extracting HTML/iXBRL filing: {pdf_path.name}')
                 raw_html = pdf_path.read_text(encoding='utf-8', errors='replace')
                 try:
