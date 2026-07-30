@@ -134,6 +134,7 @@ class ClaimDetector:
                     continue
                 seen_texts.add(norm)
                 claims.append(claim)
+            time.sleep(1.0)  # Rate limit protection for Gemini Free Tier (15 RPM)
         logger.info(f"Detected {len(claims)} ESG claims in '{source_section}' section ({len(text):,} chars processed)")
         return self._quality_filter(claims)
 
