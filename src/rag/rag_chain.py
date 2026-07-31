@@ -36,9 +36,9 @@ class RagChain:
 
     @classmethod
     def build(cls, vector_store: Optional[VectorStore]=None, api_key: str=gemini_cfg.api_key, model_name: str=gemini_cfg.model_name) -> 'RagChain':
-        models_to_try = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']
+        models_to_try = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash-latest']
         ordered_models = []
-        for m in [model_name] + models_to_try:
+        for m in models_to_try:
             if m and m not in ordered_models:
                 ordered_models.append(m)
         llm_instances = [ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0.1, max_output_tokens=8192, max_retries=1) for model in ordered_models]
