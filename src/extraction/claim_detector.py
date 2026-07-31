@@ -14,9 +14,10 @@ def _get_nlp():
     if _NLP is None:
         import spacy
         try:
-            _NLP = spacy.load('en_core_web_sm')
-        except OSError:
-            logger.warning("spaCy model 'en_core_web_sm' not found. Run: python -m spacy download en_core_web_sm")
+            _NLP = spacy.load('en_core_web_sm', disable=['ner', 'parser', 'tagger', 'lemmatizer', 'attribute_ruler'])
+            _NLP.add_pipe('sentencizer')
+        except Exception:
+            logger.warning("Fast spaCy sentencizer fallback activated.")
             _NLP = spacy.blank('en')
             _NLP.add_pipe('sentencizer')
     return _NLP
