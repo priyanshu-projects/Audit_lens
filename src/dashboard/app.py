@@ -152,7 +152,10 @@ def _run_pipeline(doc, clf, vs, rc):
         res = pipeline.verify_claim(claim, doc)
         processed_claims.append({'claim': claim, 'classification': result, 'l1_result': res['l1'], 'l2_result': res['l2'], 'l3_result': res['l3'], 'agg_result': res['agg_result'], 'shap_result': None, 'audit_observation': None})
     progress.empty()
-    _save_claims_to_file(processed_claims, doc.company_name, doc.filing_year)
+    try:
+        _save_claims_to_file(processed_claims, doc.company_name, doc.filing_year)
+    except Exception as exc:
+        logger.error(f'Failed to save claims CSV to disk: {exc}')
     st.session_state.claims = processed_claims
     st.session_state.company_name = doc.company_name
     st.session_state.filing_year = doc.filing_year

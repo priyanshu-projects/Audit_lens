@@ -98,12 +98,12 @@ COPY scripts/   ./scripts/
 # Copy pre-built FAISS knowledge base (GRI + SASB + TCFD standards)
 COPY data/knowledge_base/ ./data/knowledge_base/
 
-# Create writable dirs for runtime temp files (uploaded PDFs, reports)
-RUN mkdir -p /tmp/auditlens_uploads /tmp/auditlens_reports
+# Create writable dirs for runtime temp files and data outputs
+RUN mkdir -p /app/data/raw /app/data/classified_runs /app/data/processed /tmp/auditlens_uploads /tmp/auditlens_reports
 
 # ── Security: run as non-root user ───────────────────────────────────────────
 RUN useradd --create-home --shell /bin/bash appuser && \
-    chown -R appuser:appuser /app
+    chown -R appuser:appuser /app /tmp/auditlens_uploads /tmp/auditlens_reports
 USER appuser
 
 # ── Ports ─────────────────────────────────────────────────────────────────────
