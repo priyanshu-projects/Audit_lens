@@ -36,7 +36,7 @@ class RagChain:
 
     @classmethod
     def build(cls, vector_store: Optional[VectorStore]=None, api_key: str=gemini_cfg.api_key, model_name: str=gemini_cfg.model_name) -> 'RagChain':
-        models_to_try = ['gemini-2.0-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-flash-latest']
+        models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro']
         ordered_models = []
         for m in models_to_try:
             if m and m not in ordered_models:

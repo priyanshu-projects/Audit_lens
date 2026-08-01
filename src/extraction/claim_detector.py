@@ -203,8 +203,11 @@ class ClaimDetector:
                 logger.warning('Batch generation was blocked by safety filters or finish reason (e.g., FinishReason 19). Skipping this batch to prevent pipeline crash.')
                 return []
             if 'resourceexhausted' in exc_str or '429' in exc_str or 'quota' in exc_str:
-                logger.warning('Rate limit hit (429 ResourceExhausted). Sleeping 8s for bucket reset...')
-                time.sleep(8.0)
+                if 'perday' in exc_str or 'daily' in exc_str:
+                    logger.warning('Daily quota exhausted on current Gemini model. Triggering immediate model fallback...')
+                else:
+                    logger.warning('Per-minute rate limit hit (429). Sleeping 2s for bucket reset...')
+                    time.sleep(2.0)
             raise exc
         cleaned_json = self._clean_json_response(response_text)
         try:
