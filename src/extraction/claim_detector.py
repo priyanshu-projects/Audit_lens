@@ -46,7 +46,7 @@ CLAIM_EXTRACTION_PROMPT = 'You are an expert ESG auditor.\nYou are given a list 
 
 class ClaimDetector:
 
-    def __init__(self, classifier: Optional[FinBertClassifier]=None, llm: Optional[BaseLanguageModel]=None, confidence_threshold: float=0.8, batch_size: int=15, use_keyword_filter: bool=True, max_candidates: Optional[int]=None) -> None:
+    def __init__(self, classifier: Optional[FinBertClassifier]=None, llm: Optional[Any]=None, confidence_threshold: float=0.8, batch_size: int=25, use_keyword_filter: bool=True, max_candidates: Optional[int]=150) -> None:
         self.classifier = classifier
         self.llm = llm
         self.confidence_threshold = confidence_threshold
