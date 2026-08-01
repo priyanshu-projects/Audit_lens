@@ -41,7 +41,7 @@ class RagChain:
         for m in models_to_try:
             if m and m not in ordered_models:
                 ordered_models.append(m)
-        llm_instances = [ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0.1, max_output_tokens=8192, max_retries=1) for model in ordered_models]
+        llm_instances = [ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0.1, max_output_tokens=8192, max_retries=0) for model in ordered_models]
         primary_llm = llm_instances[0]
         llm = primary_llm.with_fallbacks(llm_instances[1:]) if len(llm_instances) > 1 else primary_llm
         logger.info(f'Gemini LLM configured with model: {ordered_models[0]} (fallbacks: {ordered_models[1:]})')
