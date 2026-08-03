@@ -196,7 +196,16 @@ class ClaimDetector:
     def _execute_extraction_run(self, prompt_str: str, batch: list[dict], source_section: str) -> list[Claim]:
         try:
             response = self.llm.invoke(prompt_str)
-            response_text = response.content if hasattr(response, 'content') else str(response)
+            if hasattr(response, 'content'):
+                content = response.content
+                if isinstance(content, str):
+                    response_text = content
+                elif isinstance(content, list):
+                    response_text = ''.join([p.get('text', str(p)) if isinstance(p, dict) else str(p) for p in content])
+                else:
+                    response_text = str(content)
+            else:
+                response_text = str(response)
         except Exception as exc:
             exc_str = str(exc).lower()
             if 'finishreason' in exc_str or 'safety' in exc_str or 'block' in exc_str or ('finish_reason' in exc_str):
@@ -275,7 +284,11 @@ class ClaimDetector:
         return claims
 
     @staticmethod
-    def _clean_json_response(text: str) -> str:
+    def _clean_json_response(text: Any) -> str:
+        if isinstance(text, list):
+            text = ''.join([item.get('text', str(item)) if isinstance(item, dict) else str(item) for item in text])
+        else:
+            text = str(text)
         text = text.strip()
         if text.startswith('```'):
             newline_idx = text.find('\n')

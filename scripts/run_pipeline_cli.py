@@ -27,7 +27,6 @@ from src.classification.finbert_classifier import FinBertClassifier
 from src.extraction.claim_detector import ClaimDetector
 from src.extraction.pdf_extractor import PdfExtractor
 from src.ingestion.edgar_fetcher import EdgarFetcher
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 def main():
     parser = argparse.ArgumentParser(description="AuditLens CLI Pipeline runner")
@@ -47,26 +46,21 @@ def main():
         print("❌ Error: GEMINI_API_KEY is not configured in .env file.")
         sys.exit(1)
 
-    models_to_try = ["gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-3.5-flash", "gemini-flash-latest"]
-    ordered_models = []
-    for m in [gemini_cfg.model_name] + models_to_try:
-        if m and m not in ordered_models:
-            ordered_models.append(m)
+    models_to_try = [gemini_cfg.model_name] + [
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-lite',
+        'gemini-flash-latest',
+        'gemini-flash-lite-latest',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-2.5-flash',
+        'gemini-2.5-pro',
+    ]
+    ordered_models = list(dict.fromkeys(m for m in models_to_try if m))
 
-    llm_instances = []
-    for model in ordered_models:
-        llm_instances.append(ChatGoogleGenerativeAI(
-            model=model,
-            google_api_key=api_key,
-            temperature=0.1,
-            max_output_tokens=8192,
-        ))
-
-    primary_llm = llm_instances[0]
-    if len(llm_instances) > 1:
-        llm = primary_llm.with_fallbacks(llm_instances[1:])
-    else:
-        llm = primary_llm
+    from src.rag.rag_chain import _FallbackLLM
+    llm = _FallbackLLM(models=ordered_models, api_key=api_key, temperature=0.1, max_output_tokens=8192)
 
     detector = ClaimDetector(
         classifier=clf,

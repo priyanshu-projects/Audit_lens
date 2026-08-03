@@ -1,13 +1,79 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Optional
-from langchain.prompts import ChatPromptTemplate
-from langchain.schema.output_parser import StrOutputParser
-from langchain.schema.runnable import RunnablePassthrough
+from typing import Any, Optional
+from langchain_core.messages import AIMessage
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 from langchain_google_genai import ChatGoogleGenerativeAI
 from loguru import logger
 from config.settings import app_cfg, gemini_cfg
 from src.rag.vector_store import SearchResult, VectorStore
+
+
+def extract_text_from_response(response: Any) -> str:
+    """Extract clean string text from any LangChain response object (handles str, list of dicts, AIMessage)."""
+    if response is None:
+        return ""
+    if isinstance(response, str):
+        return response
+    content = getattr(response, "content", response)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for p in content:
+            if isinstance(p, str):
+                parts.append(p)
+            elif isinstance(p, dict):
+                parts.append(p.get("text", str(p)))
+            else:
+                parts.append(getattr(p, "text", str(p)))
+        return "".join(parts)
+    if isinstance(content, dict):
+        return content.get("text", str(content))
+    return str(content)
+
+
+class _FallbackLLM:
+    """Tries a list of Gemini models in order with instant Python try/except.
+    Bypasses LangChain's internal tenacity retry delays entirely.
+    """
+
+    def __init__(self, models: list[str], api_key: str, temperature: float = 0.1, max_output_tokens: int = 8192) -> None:
+        self._models = models
+        self._api_key = api_key
+        self._temperature = temperature
+        self._max_output_tokens = max_output_tokens
+
+    def _make_llm(self, model: str) -> ChatGoogleGenerativeAI:
+        return ChatGoogleGenerativeAI(
+            model=model,
+            google_api_key=self._api_key,
+            temperature=self._temperature,
+            max_output_tokens=self._max_output_tokens,
+            max_retries=1,  # 1 attempt per model, no internal retries
+        )
+
+    def invoke(self, prompt: Any) -> AIMessage:
+        last_exc: Optional[Exception] = None
+        for model in self._models:
+            try:
+                logger.debug(f'Trying Gemini model: {model}')
+                result = self._make_llm(model).invoke(prompt)
+                text = extract_text_from_response(result)
+                if not text or not text.strip():
+                    raise ValueError(f"Model '{model}' returned empty response (MALFORMED_RESPONSE or blocked).")
+                logger.debug(f'Success with model: {model}')
+                return AIMessage(content=text)
+            except Exception as exc:
+                logger.warning(f'Model {model} failed ({type(exc).__name__}): {str(exc)[:120]}. Trying next fallback...')
+                last_exc = exc
+        raise last_exc or RuntimeError('All Gemini fallback models exhausted.')
+
+    def pipe(self, other: Any) -> Any:
+        """Support for LangChain | (pipe) operator."""
+        from langchain_core.runnables import RunnableLambda
+        return RunnableLambda(lambda x: other.invoke(self.invoke(x)))
 
 @dataclass
 class AuditObservation:
@@ -36,15 +102,20 @@ class RagChain:
 
     @classmethod
     def build(cls, vector_store: Optional[VectorStore]=None, api_key: str=gemini_cfg.api_key, model_name: str=gemini_cfg.model_name) -> 'RagChain':
-        models_to_try = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro']
-        ordered_models = []
-        for m in models_to_try:
-            if m and m not in ordered_models:
-                ordered_models.append(m)
-        llm_instances = [ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0.1, max_output_tokens=8192, max_retries=0) for model in ordered_models]
-        primary_llm = llm_instances[0]
-        llm = primary_llm.with_fallbacks(llm_instances[1:]) if len(llm_instances) > 1 else primary_llm
-        logger.info(f'Gemini LLM configured with model: {ordered_models[0]} (fallbacks: {ordered_models[1:]})')
+        models_to_try = [model_name] + [
+            'gemini-3.6-flash',
+            'gemini-3.5-flash',
+            'gemini-flash-latest',
+            'gemini-3.1-flash-lite',
+            'gemini-flash-lite-latest',
+            'gemini-2.0-flash',
+            'gemini-2.0-flash-lite',
+            'gemini-2.5-flash',
+            'gemini-2.5-pro',
+        ]
+        ordered_models = list(dict.fromkeys(m for m in models_to_try if m))  # deduplicate preserving order
+        llm = _FallbackLLM(models=ordered_models, api_key=api_key, temperature=0.1, max_output_tokens=8192)
+        logger.info(f'Gemini LLM configured with instant-fallback chain: {ordered_models}')
         return cls(vector_store=vector_store, llm=llm)
 
     def query(self, question: str, top_k: int=5) -> dict:
@@ -52,10 +123,13 @@ class RagChain:
         if not results:
             return {'answer': 'The knowledge base does not contain enough information to answer this question.', 'source_documents': []}
         context = self._format_context(results)
-        prompt = ChatPromptTemplate.from_template('You are an expert in ESG regulatory standards (GRI, TCFD, SASB, ISSB, EU CSRD).\n\nAnswer the following question using ONLY the provided standard excerpts.\nIf the answer is not in the excerpts, say so explicitly.\n\nREGULATORY STANDARD EXCERPTS:\n{context}\n\nQUESTION: {question}\n\nAnswer:')
-        chain = prompt | self.llm | self._output_parser
+        prompt_text = ('You are an expert in ESG regulatory standards (GRI, TCFD, SASB, ISSB, EU CSRD).\n\n'
+                       'Answer the following question using ONLY the provided standard excerpts.\n'
+                       'If the answer is not in the excerpts, say so explicitly.\n\n'
+                       f'REGULATORY STANDARD EXCERPTS:\n{context}\n\nQUESTION: {question}\n\nAnswer:')
         try:
-            answer = chain.invoke({'context': context, 'question': question})
+            response = self.llm.invoke(prompt_text)
+            answer = response.content if hasattr(response, 'content') else str(response)
         except Exception as exc:
             logger.error(f'Query failed: {exc}')
             answer = f'Error generating answer: {exc}'
@@ -78,8 +152,9 @@ class RagChain:
             auditor_q = f'{AUDITOR_QUESTION_PREFIX}{question}'
         prompt_input = {'context': context, 'claim': claim, 'shap_narrative': shap_narrative or 'No SHAP explanation available.', 'auditor_question': auditor_q}
         try:
-            chain = self._prompt | self.llm | self._output_parser
-            structured_note = chain.invoke(prompt_input)
+            prompt_text = self._prompt.format(**prompt_input)
+            response = self.llm.invoke(prompt_text)
+            structured_note = response.content if hasattr(response, 'content') else str(response)
             logger.success('Audit observation generated')
         except Exception as exc:
             logger.error(f'Gemini generation failed: {exc}')
@@ -92,10 +167,13 @@ class RagChain:
         if not results:
             return 'Knowledge base is empty. Please build the FAISS index first.'
         context = self._format_context(results)
-        chatbot_prompt = ChatPromptTemplate.from_template('You are an expert in ESG regulatory standards (GRI, TCFD, SASB, ISSB, EU CSRD).\n\nAnswer the following question using ONLY the provided standard excerpts.\nIf the answer is not in the excerpts, say so explicitly.\n\nREGULATORY STANDARD EXCERPTS:\n{context}\n\nQUESTION: {question}\n\nAnswer:')
-        chain = chatbot_prompt | self.llm | self._output_parser
+        prompt_text = ('You are an expert in ESG regulatory standards (GRI, TCFD, SASB, ISSB, EU CSRD).\n\n'
+                       'Answer the following question using ONLY the provided standard excerpts.\n'
+                       'If the answer is not in the excerpts, say so explicitly.\n\n'
+                       f'REGULATORY STANDARD EXCERPTS:\n{context}\n\nQUESTION: {question}\n\nAnswer:')
         try:
-            return chain.invoke({'context': context, 'question': question})
+            response = self.llm.invoke(prompt_text)
+            return response.content if hasattr(response, 'content') else str(response)
         except Exception as exc:
             logger.error(f'Chatbot generation failed: {exc}')
             return f'Error generating answer: {exc}'
